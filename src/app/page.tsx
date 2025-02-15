@@ -1,101 +1,255 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import axios from "axios";
+import BookInput from "@/components/BookInput";
+
+interface Book {
+    title: string;
+    author: string;
+    cover: string;
+    why: string; // Added 'why' field to store explanation
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    const [books, setBooks] = useState<Book[]>([]);
+    const [recommendations, setRecommendations] = useState<Book[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [showMain, setShowMain] = useState(false);
+    const [selectedBook, setSelectedBook] = useState<Book | null>(null); // State for modal
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    const addBook = (book: Book) => {
+        setBooks([...books, book]);
+    };
+
+    const removeBook = (index: number) => {
+        setBooks(books.filter((_, i) => i !== index));
+    };
+
+    const getRecommendations = async () => {
+        if (books.length === 0) return alert("Please add books first.");
+        setLoading(true);
+
+        try {
+            const response = await axios.post("/api/recommend", { books });
+
+            const fetchedBooks = await Promise.all(
+                response.data.map(async (book: any) => {
+                    const res = await axios.get(
+                        `https://openlibrary.org/search.json?q=${book.title}&limit=1`
+                    );
+                    const bookData = res.data.docs[0];
+
+                    return {
+                        title: bookData?.title || "Unknown",
+                        author: bookData?.author_name
+                            ? bookData.author_name[0]
+                            : "Unknown",
+                        cover: bookData?.cover_i
+                            ? `https://covers.openlibrary.org/b/id/${bookData.cover_i}-M.jpg`
+                            : "/placeholder.jpg",
+                        why: book.why, // Ensure 'why' is passed from API
+                    };
+                })
+            );
+
+            setRecommendations(fetchedBooks);
+        } catch (error) {
+            console.error("Error fetching recommendations:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!showMain) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen bg-gray-900 text-white text-center p-6">
+                <h1 className="text-4xl font-bold mb-4">BookRec</h1>
+                <p className="max-w-md mb-6">
+                    Discover books similar to your favorites. Input books, get
+                    recommendations.
+                </p>
+                <p className="text-sm mb-4">Developed by Gabriel Agbese</p>
+                <button
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
+                    onClick={() => setShowMain(true)}
+                >
+                    Enter
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <main className="p-6 md:p-12 max-w-4xl mx-auto">
+            <h1 className="text-2xl font-bold mb-4 text-center">
+                Book Recommendation App
+            </h1>
+
+            {/* Keep Book Input Vertical */}
+            <div className="flex flex-col items-center space-y-4">
+                <BookInput
+                    books={books}
+                    onAddBook={addBook}
+                    onRemoveBook={removeBook}
+                />
+
+                <button
+                    className="bg-green-500 text-white px-4 py-2 mt-4"
+                    onClick={getRecommendations}
+                    disabled={loading}
+                >
+                    {loading ? "Loading..." : "Get Recommendations"}
+                </button>
+            </div>
+
+            {recommendations.length > 0 && (
+                <div className="mt-10">
+                    <h2 className="text-xl font-semibold mb-4">
+                        Recommended Books:
+                    </h2>
+                    <div className="space-y-16">
+                        <div className="flex flex-col gap-16">
+                            {/* Mobile View */}
+                            <div className="md:hidden flex flex-col gap-16">
+                                {recommendations.map((book, index) => (
+                                    <div
+                                        key={index}
+                                        className="relative"
+                                        onClick={() => setSelectedBook(book)}
+                                    >
+                                        <div className="flex items-center gap-4 mx-12">
+                                            <div className="w-28 h-44 rounded-md shadow-md z-10">
+                                                <img
+                                                    src={book.cover}
+                                                    alt={book.title}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                            <div className="flex flex-col flex-1">
+                                                <p className="text-lg font-bold">
+                                                    {book.title}
+                                                </p>
+                                                <p className="text-gray-600 text-xs">
+                                                    {book.author}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {/* Mobile Shelf */}
+                                        <div className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 w-full -mt-4 shadow-md shelf-shadow">
+                                            <div
+                                                className="w-full h-2 bg-yellow-700/30"
+                                                style={{
+                                                    clipPath:
+                                                        "polygon(5% 0%, 95% 0%, 100% 100%, 0% 100%)",
+                                                }}
+                                            ></div>
+                                            <div className="w-full h-4 bg-yellow-600/30 shadow-lg"></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Desktop View */}
+                            <div className="hidden md:flex md:flex-col gap-16">
+                                {Array.from(
+                                    {
+                                        length: Math.ceil(
+                                            recommendations.length / 2
+                                        ),
+                                    },
+                                    (_, i) => {
+                                        const pairBooks = recommendations.slice(
+                                            i * 2,
+                                            i * 2 + 2
+                                        );
+                                        return (
+                                            <div key={i} className="relative">
+                                                <div className="flex justify-evenly lg:mx-20">
+                                                    {pairBooks.map(
+                                                        (book, index) => (
+                                                            <div
+                                                                key={index}
+                                                                className="flex items-center gap-4 lg:w-1/2 sm:w-[100vw]"
+                                                                onClick={() =>
+                                                                    setSelectedBook(
+                                                                        book
+                                                                    )
+                                                                }
+                                                            >
+                                                                <div className="w-32 h-48 rounded-md shadow-md aspect-2/3">
+                                                                    <img
+                                                                        src={
+                                                                            book.cover
+                                                                        }
+                                                                        alt={
+                                                                            book.title
+                                                                        }
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                </div>
+                                                                <div className="flex flex-col flex-1">
+                                                                    <p className="font-bold">
+                                                                        {
+                                                                            book.title
+                                                                        }
+                                                                    </p>
+                                                                    <p className="text-gray-600">
+                                                                        {
+                                                                            book.author
+                                                                        }
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </div>
+                                                {/* Desktop Shelf */}
+                                                <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-11/12 ">
+                                                    <div
+                                                        className="w-full h-2 bg-yellow-700/30"
+                                                        style={{
+                                                            clipPath:
+                                                                "polygon(5% 0%, 95% 0%, 100% 100%, 0% 100%)",
+                                                        }}
+                                                    ></div>
+                                                    <div className="w-full h-5 bg-yellow-600/30 shadow-lg"></div>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal for selected book */}
+            {selectedBook && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg p-6 max-w-lg text-center">
+                        <h2 className="text-xl font-bold mb-2">
+                            {selectedBook.title}
+                        </h2>
+                        <p className="text-gray-600 mb-4">
+                            {selectedBook.author}
+                        </p>
+                        <img
+                            src={selectedBook.cover}
+                            alt={selectedBook.title}
+                            className="w-32 h-48 mx-auto mb-4"
+                        />
+                        <p className="text-gray-700">{selectedBook.why}</p>
+                        <button
+                            className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
+                            onClick={() => setSelectedBook(null)}
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
+        </main>
+    );
 }
