@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import BookInput from "@/components/BookInput";
 
@@ -17,6 +17,18 @@ export default function Home() {
     const [loading, setLoading] = useState(false);
     const [showMain, setShowMain] = useState(false);
     const [selectedBook, setSelectedBook] = useState<Book | null>(null); // State for modal
+
+    useEffect(() => {
+        if (selectedBook) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+
+        return () => {
+            document.body.style.overflow = ""; // Cleanup on unmount
+        };
+    }, [selectedBook]);
 
     const addBook = (book: Book) => {
         setBooks([...books, book]);
@@ -119,7 +131,7 @@ export default function Home() {
                                         onClick={() => setSelectedBook(book)}
                                     >
                                         <div className="flex items-center gap-4 mx-12">
-                                            <div className="w-28 h-44 rounded-md shadow-md z-10">
+                                            <div className="w-28 h-44 rounded-md shadow-md z-10 hardcover-book">
                                                 <img
                                                     src={book.cover}
                                                     alt={book.title}
@@ -136,9 +148,9 @@ export default function Home() {
                                             </div>
                                         </div>
                                         {/* Mobile Shelf */}
-                                        <div className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 w-full -mt-4 shadow-md shelf-shadow">
+                                        <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-full -mt-4 shadow-md shelf-shadow">
                                             <div
-                                                className="w-full h-2 bg-yellow-700/30"
+                                                className="w-full h-3 bg-yellow-700/30"
                                                 style={{
                                                     clipPath:
                                                         "polygon(5% 0%, 95% 0%, 100% 100%, 0% 100%)",
@@ -177,7 +189,7 @@ export default function Home() {
                                                                     )
                                                                 }
                                                             >
-                                                                <div className="w-32 h-48 rounded-md shadow-md aspect-2/3">
+                                                                <div className="w-32 h-48 rounded-md shadow-md aspect-2/3 hardcover-book z-10">
                                                                     <img
                                                                         src={
                                                                             book.cover
@@ -205,9 +217,9 @@ export default function Home() {
                                                     )}
                                                 </div>
                                                 {/* Desktop Shelf */}
-                                                <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-11/12 ">
+                                                <div className="absolute -bottom-7 left-1/2 transform -translate-x-1/2 w-11/12 ">
                                                     <div
-                                                        className="w-full h-2 bg-yellow-700/30"
+                                                        className="w-full h-3 bg-yellow-700/30"
                                                         style={{
                                                             clipPath:
                                                                 "polygon(5% 0%, 95% 0%, 100% 100%, 0% 100%)",
@@ -227,7 +239,7 @@ export default function Home() {
 
             {/* Modal for selected book */}
             {selectedBook && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-20">
                     <div className="bg-white rounded-lg p-6 max-w-lg text-center">
                         <h2 className="text-xl font-bold mb-2">
                             {selectedBook.title}
