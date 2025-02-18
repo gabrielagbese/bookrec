@@ -8,7 +8,11 @@ interface Book {
     title: string;
     author: string;
     cover: string;
-    why: string; // Added 'why' field to store explanation
+    why: string;
+    isbn: number | null;
+    first_publish_year?: number; // Optional (not all books may have this)
+    subjects?: string[]; // Optional (some books may not have subjects)
+    synopsis?: string; // Optional (depends on availability)
 }
 
 export default function Home() {
@@ -44,54 +48,93 @@ export default function Home() {
 
         try {
             const response = await axios.post("/api/recommend", { books });
-            const recommendedBooks = response.data; // Now includes title, author, and why
+            const recommendedBooks = response.data;
             console.log("API response:", response.data);
 
-            // Fetch book details from OpenLibrary
             const fetchedBooks = await Promise.all(
                 recommendedBooks.map(async (recBook: any) => {
-                    try {
-                        const query = `${recBook.title} ${recBook.author}`; // Combine title and author for better accuracy
-                        const res = await axios.get(
-                            `https://openlibrary.org/search.json?q=${encodeURIComponent(
-                                query
-                            )}&limit=1`
-                        );
-                        console.log("Open Library response:", res.data);
+                    const query = `${recBook.title} ${recBook.author}`;
+                    const res = await axios.get(
+                        `https://openlibrary.org/search.json?q=${encodeURIComponent(
+                            query
+                        )}&limit=1`
+                    );
 
-                        const book = res.data.docs?.[0]; // Ensure book exists
+                    console.log("OpenLibrary search response:", res.data);
 
-                        if (!book) {
-                            console.warn(
-                                "No match found for:",
-                                recBook.title,
-                                recBook.author
+                    const book = res.data.docs?.[0] || {};
+
+                    let synopsis = "No synopsis available.";
+                    let themes: string[] = ["N/A"];
+                    let isbn: string | null = null;
+
+                    if (book.key) {
+                        try {
+                            // Get work details
+                            const workRes = await axios.get(
+                                `https://openlibrary.org${book.key}.json`
                             );
-                            return null; // Skip books with no match
-                        }
+                            console.log(
+                                "OpenLibrary work response:",
+                                workRes.data
+                            );
 
-                        return {
-                            title: book.title || recBook.title, // Fallback to original title
-                            author:
-                                book.author_name?.[0] ||
-                                recBook.author ||
-                                "Unknown",
-                            cover: book.cover_i
-                                ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
-                                : "/placeholder.jpg",
-                            why: recBook.why, // Include reason for recommendation
-                        };
-                    } catch (fetchError) {
-                        console.error(
-                            "Error fetching book details:",
-                            fetchError
-                        );
-                        return null; // Skip this book if an error occurs
+                            // Get editions for ISBN
+                            const editionsRes = await axios.get(
+                                `https://openlibrary.org${book.key}/editions.json?limit=1&languages=eng`
+                            );
+                            console.log(
+                                "OpenLibrary editions response:",
+                                editionsRes.data
+                            );
+
+                            // Try to get ISBN-13 first, fall back to ISBN-10
+                            const firstEdition = editionsRes.data.entries[0];
+                            if (firstEdition) {
+                                isbn =
+                                    firstEdition.isbn_13?.[0] ||
+                                    firstEdition.isbn_10?.[0] ||
+                                    null;
+                                console.log(
+                                    `Found ISBN for ${book.title}:`,
+                                    isbn
+                                );
+                            }
+
+                            synopsis = workRes.data.description
+                                ? typeof workRes.data.description === "string"
+                                    ? workRes.data.description
+                                    : workRes.data.description.value
+                                : "No synopsis available.";
+
+                            themes = workRes.data.subjects ||
+                                workRes.data.subject_places ||
+                                workRes.data.subject_people ||
+                                workRes.data.subject_times || ["N/A"];
+                        } catch (error) {
+                            console.warn("Error fetching work details:", error);
+                        }
                     }
+
+                    return {
+                        title: book.title || recBook.title,
+                        author: book.author_name
+                            ? book.author_name[0]
+                            : recBook.author || "Unknown",
+                        cover: book.cover_i
+                            ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
+                            : "/placeholder.jpg",
+                        why: recBook.why,
+                        first_publish_year:
+                            book.first_publish_year || "Unknown",
+                        themes: themes.slice(0, 5),
+                        synopsis: synopsis,
+                        isbn: isbn,
+                    };
                 })
             );
 
-            setRecommendations(fetchedBooks.filter(Boolean)); // Remove `null` values
+            setRecommendations(fetchedBooks);
         } catch (error) {
             console.error("Error fetching recommendations:", error);
         } finally {
@@ -265,26 +308,74 @@ export default function Home() {
 
             {/* Modal for selected book */}
             {selectedBook && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-20">
-                    <div className="bg-white rounded-lg p-6 max-w-lg text-center">
-                        <h2 className="text-xl font-bold mb-2">
-                            {selectedBook.title}
-                        </h2>
-                        <p className="text-gray-600 mb-4">
-                            {selectedBook.author}
-                        </p>
-                        <img
-                            src={selectedBook.cover}
-                            alt={selectedBook.title}
-                            className="w-32 h-48 mx-auto mb-4"
-                        />
-                        <p className="text-gray-700">{selectedBook.why}</p>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-20 ">
+                    <div className="bg-white rounded-lg p-6 max-w-lg w-full shadow-lg h-[90vh] overflow-auto">
+                        {/* Close Button */}
                         <button
-                            className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
+                            className="absolute top-10 right-6 text-white font-bold bg-black hover:text-gray-800"
                             onClick={() => setSelectedBook(null)}
                         >
-                            Close
+                            Close ✖
                         </button>
+
+                        {/* Book Cover & Details */}
+                        <div className="flex flex-col sm:flex-row items-center gap-6">
+                            {/* Book Cover */}
+                            <img
+                                src={selectedBook.cover}
+                                alt={selectedBook.title}
+                                className="w-32 h-48 object-cover rounded shadow-md"
+                            />
+
+                            {/* Book Info */}
+                            <div className="text-left">
+                                <h2 className="text-xl font-bold">
+                                    {selectedBook.title}
+                                </h2>
+                                <p className="text-gray-600 mb-2">
+                                    {selectedBook.author}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    <strong>Published:</strong>{" "}
+                                    {selectedBook.first_publish_year ||
+                                        "Unknown"}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    <strong>Genres:</strong>{" "}
+                                    {selectedBook.subjects?.join(", ") || "N/A"}
+                                </p>
+                                {/* View on GoodReads Button */}
+                                {selectedBook.isbn && (
+                                    <a
+                                        href={`https://www.goodreads.com/book/isbn/${selectedBook.isbn}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="mt-2 inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                    >
+                                        View on GoodReads
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Reason for Recommendation */}
+                        <div className="mt-4">
+                            <h3 className="text-lg font-semibold">
+                                Why Recommended:
+                            </h3>
+                            <p className="text-gray-700">{selectedBook.why}</p>
+                        </div>
+
+                        {/* Book Synopsis */}
+                        <div className="mt-4">
+                            <h3 className="text-lg font-semibold">Synopsis:</h3>
+                            <p className="text-gray-700">
+                                {selectedBook.synopsis ||
+                                    "No synopsis available."}
+                            </p>
+                        </div>
+
+                        {/* Close Button */}
                     </div>
                 </div>
             )}
