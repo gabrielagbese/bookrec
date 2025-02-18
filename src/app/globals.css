@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300..700;1,300..700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,50 +7,37 @@
 :root {
     --background: #ffffff;
     --foreground: #171717;
+    --font-pt-serif: serif;
+    --font-cormorant: "Cormorant";
 }
 
 body {
     color: var(--foreground);
     background: var(--background);
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--font-cormorant);
 }
 
 .shelf-shadow {
     box-shadow: 0 15px 10px -10px rgba(0, 0, 0, 0.5);
 }
 
-.cover {
-    background: linear-gradient(
-        to right,
-        rgb(60, 13, 20) 3px,
-        rgba(255, 255, 255, 0.5) 5px,
-        rgba(255, 255, 255, 0.25) 7px,
-        rgba(255, 255, 255, 0.25) 10px,
-        transparent 12px,
-        transparent 16px,
-        rgba(255, 255, 255, 0.25) 17px,
-        transparent 22px
-    );
-    box-shadow: 0 0 5px -1px black, inset -1px 1px 2px rgba(255, 255, 255, 0.5);
-    margin: auto;
-    border-radius: 5px;
-}
 .hardcover-book {
     position: relative;
     /* Adjust for your layout */
     background: #ddd;
     border-radius: 3px;
     box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
-    transform: perspective(600px) rotateY(10deg);
+    /* transform: perspective(600px) rotateY(10deg); */
     transition: transform 0.3s ease-in;
     background: linear-gradient(to right, #fff, #ddd);
+    cursor: pointer;
 }
 
 .hardcover-book img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border: medium solid black;
+    border: thin solid gray;
     border-radius: 1px;
 }
 
@@ -57,17 +46,18 @@ body {
     content: "";
     position: absolute;
     top: 0%;
-    left: -5px;
-    width: 8px;
+    left: -1px;
+    width: 2px;
     height: 100%;
     transform: perspective(600px) rotateY(-10deg);
-    background: linear-gradient(to right, #222, #444);
+    transform-origin: left;
+    background: linear-gradient(to right, #444, #777);
     border-radius: 1px;
-    transition: transform 0.3s ease-in-out;
+    transition: transform 0.3s ease-in;
 }
 
 /* Simulating edge */
-.hardcover-book::after {
+/* .hardcover-book::after {
     content: "";
     position: absolute;
     top: 0;
@@ -76,13 +66,14 @@ body {
     height: 100%;
     background: linear-gradient(to right, #fff, #ddd);
     border-radius: 2px;
-}
+} */
 
 /* Hover effect for realism */
 .hardcover-book:hover {
-    transform: perspective(600px) rotateY(-5deg) translateY(-3px);
+    transform: perspective(600px) rotateY(-10deg);
+    transform-origin: left;
 }
 
-.hardcover-book:hover::before {
-    transform: perspective(600px) rotateY(-10deg) scaleX(0.3); /* Shrinks spine */
-}
+/* .hardcover-book:hover::before {
+    transform: perspective(600px) rotateY(-8deg) scaleX(0.3); 
+} */

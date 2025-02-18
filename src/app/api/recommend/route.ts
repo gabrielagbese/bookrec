@@ -15,7 +15,7 @@ export async function POST(req: Request) {
             );
         }
 
-        const prompt = `I'd like recommendations for 6 books similar to ${books
+        const prompt = `I'd like recommendations for 10 books similar to ${books
             .map((book: any) => `"${book.title}" by ${book.author}`)
             .join(" and ")}.
           
@@ -31,7 +31,8 @@ export async function POST(req: Request) {
         ] 
         
         Return **only** valid JSON with no extra text.
-        Treat each new prompt as a new request dont use the context of older books requested`;
+        Treat each new prompt as a new request don't use the context of older books requested
+        `;
 
         const result = await generateText({
             model: google("gemini-2.0-flash-001"),

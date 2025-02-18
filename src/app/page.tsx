@@ -44,28 +44,54 @@ export default function Home() {
 
         try {
             const response = await axios.post("/api/recommend", { books });
+            const recommendedBooks = response.data; // Now includes title, author, and why
+            console.log("API response:", response.data);
 
+            // Fetch book details from OpenLibrary
             const fetchedBooks = await Promise.all(
-                response.data.map(async (book: any) => {
-                    const res = await axios.get(
-                        `https://openlibrary.org/search.json?q=${book.title}&limit=1`
-                    );
-                    const bookData = res.data.docs[0];
+                recommendedBooks.map(async (recBook: any) => {
+                    try {
+                        const query = `${recBook.title} ${recBook.author}`; // Combine title and author for better accuracy
+                        const res = await axios.get(
+                            `https://openlibrary.org/search.json?q=${encodeURIComponent(
+                                query
+                            )}&limit=1`
+                        );
+                        console.log("Open Library response:", res.data);
 
-                    return {
-                        title: bookData?.title || "Unknown",
-                        author: bookData?.author_name
-                            ? bookData.author_name[0]
-                            : "Unknown",
-                        cover: bookData?.cover_i
-                            ? `https://covers.openlibrary.org/b/id/${bookData.cover_i}-M.jpg`
-                            : "/placeholder.jpg",
-                        why: book.why, // Ensure 'why' is passed from API
-                    };
+                        const book = res.data.docs?.[0]; // Ensure book exists
+
+                        if (!book) {
+                            console.warn(
+                                "No match found for:",
+                                recBook.title,
+                                recBook.author
+                            );
+                            return null; // Skip books with no match
+                        }
+
+                        return {
+                            title: book.title || recBook.title, // Fallback to original title
+                            author:
+                                book.author_name?.[0] ||
+                                recBook.author ||
+                                "Unknown",
+                            cover: book.cover_i
+                                ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
+                                : "/placeholder.jpg",
+                            why: recBook.why, // Include reason for recommendation
+                        };
+                    } catch (fetchError) {
+                        console.error(
+                            "Error fetching book details:",
+                            fetchError
+                        );
+                        return null; // Skip this book if an error occurs
+                    }
                 })
             );
 
-            setRecommendations(fetchedBooks);
+            setRecommendations(fetchedBooks.filter(Boolean)); // Remove `null` values
         } catch (error) {
             console.error("Error fetching recommendations:", error);
         } finally {
@@ -217,15 +243,15 @@ export default function Home() {
                                                     )}
                                                 </div>
                                                 {/* Desktop Shelf */}
-                                                <div className="absolute -bottom-7 left-1/2 transform -translate-x-1/2 w-11/12 ">
+                                                <div className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 w-11/12 ">
                                                     <div
-                                                        className="w-full h-3 bg-yellow-700/30"
+                                                        className="w-full h-4 bg-yellow-700/30"
                                                         style={{
                                                             clipPath:
                                                                 "polygon(5% 0%, 95% 0%, 100% 100%, 0% 100%)",
                                                         }}
                                                     ></div>
-                                                    <div className="w-full h-5 bg-yellow-600/30 shadow-lg"></div>
+                                                    <div className="w-full h-3 bg-yellow-600/30 shadow-lg"></div>
                                                 </div>
                                             </div>
                                         );
