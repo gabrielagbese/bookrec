@@ -26,20 +26,24 @@ const BookInput = ({ books, onAddBook, onRemoveBook }: Props) => {
                 }`}
             >
                 {books.map((book, index) => (
-                    <div key={index} className="flex flex-col items-center">
-                        <div className="relative w-36 h-56 shadow-lg rounded-md ">
+                    <div
+                        key={index}
+                        className="flex flex-col items-center overflow-visible"
+                    >
+                        <div className="relative w-36 h-56 shadow-lg rounded-md hcb overflow-hidden">
                             <img
                                 src={book.cover}
                                 alt={book.title}
                                 className="w-full h-full object-cover"
                             />
                             <button
-                                className="absolute -top-2 -right-2 aspect-square bg-red-500 text-white rounded-full p-1 text-xs w-6 h-6 shadow-lg"
+                                className="absolute top-0 right-0 -translate-x-1/4 translate-y-1/4 shadow-md aspect-square bg-red-500 text-white rounded-full p-1 text-xs w-6 h-6 shadow-lg"
                                 onClick={() => onRemoveBook(index)}
                             >
                                 ✕
                             </button>
                         </div>
+
                         <p className="text-sm font-semibold text-center mt-2 w-36">
                             {book.title}
                         </p>
